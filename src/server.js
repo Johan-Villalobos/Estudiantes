@@ -44,32 +44,53 @@ if (req.method === "GET" && pathname === "/swagger.json") {
   return res.end(swagger);
 }
 
-// ====================
-// SWAGGER UI
-// ====================
+// =========================
+// SWAGGER UI (CORREGIDO)
+// =========================
 if (pathname.startsWith("/api-docs")) {
   let file = pathname.replace("/api-docs", "");
-  if (file === "" || file === "/") file = "/index.html";
+
+  // Default
+  if (file === "" || file === "/") {
+    file = "index.html";
+  } else {
+    file = file.replace(/^\/+/, ""); // 🔥 quitar slash inicial
+  }
 
   const filePath = path.join(swaggerUiPath, file);
 
   fs.readFile(filePath, (err, data) => {
     if (err) {
+      console.error("Swagger file error:", filePath);
       res.writeHead(404);
-      return res.end("No encontrado");
+      return res.end("Archivo no encontrado");
     }
 
-    let content = data.toString();
+    let content = data;
 
-    // Reemplazar URL por tu swagger.json
-    if (file.endsWith("index.html")) {
-      content = content.replace(
+    // Solo modificar index.html
+    if (file === "index.html") {
+      content = data.toString().replace(
         "https://petstore.swagger.io/v2/swagger.json",
         "/swagger.json"
       );
     }
 
-    res.writeHead(200);
+    const ext = path.extname(filePath);
+
+    const contentTypes = {
+      ".html": "text/html",
+      ".js": "application/javascript",
+      ".css": "text/css",
+      ".png": "image/png",
+      ".json": "application/json",
+      ".ico": "image/x-icon"
+    };
+
+    res.writeHead(200, {
+      "Content-Type": contentTypes[ext] || "text/plain"
+    });
+
     res.end(content);
   });
 
