@@ -1,4 +1,4 @@
-const swaggerSpec = {
+module.exports = {
   openapi: "3.0.0",
   info: {
     title: "API Notas Estudiantiles",
@@ -238,5 +238,3 @@ const swaggerSpec = {
     },
   },
 };
-
-module.exports = { swaggerSpec };
