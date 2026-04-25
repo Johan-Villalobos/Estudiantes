@@ -45,55 +45,58 @@ if (req.method === "GET" && pathname === "/swagger.json") {
 }
 
 // =========================
-// SWAGGER UI (CORREGIDO)
+// SWAGGER UI (VERSIÓN FINAL)
 // =========================
 if (pathname.startsWith("/api-docs")) {
   let file = pathname.replace("/api-docs", "");
 
-  // Default
+  // Si es la raíz
   if (file === "" || file === "/") {
     file = "index.html";
-  } else {
-    file = file.replace(/^\/+/, ""); // 🔥 quitar slash inicial
   }
+
+  // Limpiar path (evita errores en Render)
+  file = file.replace(/^\/+/, "");
 
   const filePath = path.join(swaggerUiPath, file);
 
-  fs.readFile(filePath, (err, data) => {
-    if (err) {
-      console.error("Swagger file error:", filePath);
-      res.writeHead(404);
-      return res.end("Archivo no encontrado");
-    }
+  // 🔥 Verificar existencia antes de leer
+  if (!fs.existsSync(filePath)) {
+    console.error("Archivo no encontrado:", filePath);
+    res.writeHead(404);
+    return res.end("Archivo no encontrado");
+  }
 
-    let content = data;
+  let content = fs.readFileSync(filePath);
 
-    // Solo modificar index.html
-    if (file === "index.html") {
-      content = data.toString().replace(
-        "https://petstore.swagger.io/v2/swagger.json",
-        "/swagger.json"
-      );
-    }
+  // Solo modificar index.html
+  if (file === "index.html") {
+    content = content.toString().replace(
+      "https://petstore.swagger.io/v2/swagger.json",
+      "/swagger.json"
+    );
+  }
 
-    const ext = path.extname(filePath);
+  // Tipos MIME completos (CLAVE 🔥)
+  const ext = path.extname(filePath).toLowerCase();
 
-    const contentTypes = {
-      ".html": "text/html",
-      ".js": "application/javascript",
-      ".css": "text/css",
-      ".png": "image/png",
-      ".json": "application/json",
-      ".ico": "image/x-icon"
-    };
+  const contentTypes = {
+    ".html": "text/html",
+    ".js": "application/javascript",
+    ".css": "text/css",
+    ".json": "application/json",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".svg": "image/svg+xml",
+    ".ico": "image/x-icon"
+  };
 
-    res.writeHead(200, {
-      "Content-Type": contentTypes[ext] || "text/plain"
-    });
-
-    res.end(content);
+  res.writeHead(200, {
+    "Content-Type": contentTypes[ext] || "application/octet-stream"
   });
 
+  res.end(content);
   return;
 }
     // 404
