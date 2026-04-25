@@ -1,0 +1,16 @@
+{
+  "name": "notas-backend",
+  "version": "1.0.0",
+  "description": "Backend API para app de gestión de notas estudiantiles",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
