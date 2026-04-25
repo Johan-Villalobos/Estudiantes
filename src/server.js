@@ -5,7 +5,8 @@ const path = require("path");
 const { setCors, sendJSON } = require("./middleware/helpers");
 const { estudiantesRouter } = require("./routes/estudiantes");
 const { notasRouter } = require("./routes/notas");
-const swaggerSpec = require("./src/routes/swagger");
+const swaggerSpec = require("./routes/swagger");
+
 
 const PORT = process.env.PORT || 3000;
 
