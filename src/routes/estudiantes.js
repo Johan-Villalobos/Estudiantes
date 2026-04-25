@@ -2,7 +2,7 @@ const { registrarEstudiante, buscarEstudiante, listarEstudiantes } = require("..
 const { jsonBody, sendJSON } = require("../middleware/helpers");
 
 /**
- * Parsea query string simple: "cedula=123&nombre=Juan" → { cedula: "123", nombre: "Juan" }
+ * Parsea query string manejando tanto %20 como + como espacio
  */
 function parseQuery(url) {
   const idx = url.indexOf("?");
@@ -13,7 +13,11 @@ function parseQuery(url) {
     .split("&")
     .forEach((pair) => {
       const [k, v] = pair.split("=");
-      if (k) params[decodeURIComponent(k)] = decodeURIComponent(v ?? "");
+      if (k) {
+        const key = decodeURIComponent(k.replace(/\+/g, " "));
+        const val = decodeURIComponent((v ?? "").replace(/\+/g, " "));
+        params[key] = val;
+      }
     });
   return params;
 }
