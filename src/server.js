@@ -5,26 +5,7 @@ const path = require("path");
 const { setCors, sendJSON } = require("./middleware/helpers");
 const { estudiantesRouter } = require("./routes/estudiantes");
 const { notasRouter } = require("./routes/notas");
-
-// ✅ Agrega esto en su lugar:
-const swaggerJsdoc = require("swagger-jsdoc");
-
-const swaggerSpec = swaggerJsdoc({
-  definition: {
-    openapi: "3.0.0",
-    info: {
-      title: "API Notas Estudiantiles",
-      version: "1.0.0",
-      description: "Sistema de gestión de notas estudiantiles",
-    },
-    servers: [
-      { url: "https://estudiantes-tzgb.onrender.com", description: "Producción" },
-      { url: "http://localhost:3000", description: "Local" },
-    ],
-    // ... el resto del objeto igual que antes
-  },
-  apis: [],
-});
+const { swaggerSpec } = require("./swagger");
 
 const PORT = process.env.PORT || 3000;
 
