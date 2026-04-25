@@ -23,13 +23,15 @@ function jsonBody(req) {
 function setCors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept");
+  res.setHeader("Access-Control-Max-Age", "86400");
 }
 
 /**
- * Envía una respuesta JSON
+ * Envía una respuesta JSON (incluye CORS para garantizar que siempre se envíen)
  */
 function sendJSON(res, statusCode, data) {
+  setCors(res);
   res.writeHead(statusCode, { "Content-Type": "application/json" });
   res.end(JSON.stringify(data));
 }
