@@ -1,4 +1,7 @@
 require("dotenv").config();
+const fs = require("fs");
+const path = require("path");
+const swaggerUiPath = require("swagger-ui-dist").getAbsoluteFSPath();
 const http = require("http");
 const { setCors, sendJSON } = require("./middleware/helpers");
 const { estudiantesRouter } = require("./routes/estudiantes");
@@ -32,7 +35,46 @@ const server = http.createServer(async (req, res) => {
     // Rutas de notas
     const handledByNotas = await notasRouter(req, res, pathname);
     if (handledByNotas !== false) return;
+// ====================
+// SWAGGER JSON
+// ====================
+if (req.method === "GET" && pathname === "/swagger.json") {
+  const swagger = fs.readFileSync(path.join(__dirname, "swagger.json"));
+  res.writeHead(200, { "Content-Type": "application/json" });
+  return res.end(swagger);
+}
 
+// ====================
+// SWAGGER UI
+// ====================
+if (pathname.startsWith("/api-docs")) {
+  let file = pathname.replace("/api-docs", "");
+  if (file === "" || file === "/") file = "/index.html";
+
+  const filePath = path.join(swaggerUiPath, file);
+
+  fs.readFile(filePath, (err, data) => {
+    if (err) {
+      res.writeHead(404);
+      return res.end("No encontrado");
+    }
+
+    let content = data.toString();
+
+    // Reemplazar URL por tu swagger.json
+    if (file.endsWith("index.html")) {
+      content = content.replace(
+        "https://petstore.swagger.io/v2/swagger.json",
+        "/swagger.json"
+      );
+    }
+
+    res.writeHead(200);
+    res.end(content);
+  });
+
+  return;
+}
     // 404
     sendJSON(res, 404, { error: "Ruta no encontrada" });
   } catch (err) {
