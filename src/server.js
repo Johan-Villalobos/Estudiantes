@@ -1,130 +1,116 @@
 require("dotenv").config();
+const http = require("http");
 const fs = require("fs");
 const path = require("path");
-const swaggerUiPath = require("swagger-ui-dist").getAbsoluteFSPath();
-const http = require("http");
 const { setCors, sendJSON } = require("./middleware/helpers");
 const { estudiantesRouter } = require("./routes/estudiantes");
 const { notasRouter } = require("./routes/notas");
+const { swaggerSpec } = require("./swagger");
 
 const PORT = process.env.PORT || 3000;
 
-// Tipos MIME para archivos estáticos de Swagger
-const contentTypes = {
+// ─── Ruta física de swagger-ui-dist ───────────────────────────────────────────
+const swaggerUiPath = path.dirname(require.resolve("swagger-ui-dist/package.json"));
+
+// ─── Tipos MIME básicos para los assets de Swagger UI ─────────────────────────
+const MIME_TYPES = {
   ".html": "text/html",
-  ".js":   "application/javascript",
   ".css":  "text/css",
-  ".json": "application/json",
+  ".js":   "application/javascript",
   ".png":  "image/png",
-  ".jpg":  "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".svg":  "image/svg+xml",
-  ".ico":  "image/x-icon",
+  ".map":  "application/json",
 };
 
-// Assets conocidos de Swagger UI que el browser puede pedir sin prefijo
-const SWAGGER_ASSETS = new Set([
-  "swagger-ui.css",
-  "swagger-ui-bundle.js",
-  "swagger-ui-standalone-preset.js",
-  "swagger-initializer.js",
-  "index.css",
-  "favicon-32x32.png",
-  "favicon-16x16.png",
-  "oauth2-redirect.html",
-]);
+// ─── Sirve un archivo estático de swagger-ui-dist ─────────────────────────────
+function serveSwaggerAsset(res, filename) {
+  const filePath = path.join(swaggerUiPath, filename);
+  const ext = path.extname(filename);
+  const contentType = MIME_TYPES[ext] || "application/octet-stream";
 
-/**
- * Sirve un archivo de swagger-ui-dist.
- * @param {http.ServerResponse} res
- * @param {string} file  - nombre de archivo relativo a swaggerUiPath
- */
-function serveSwaggerFile(res, file) {
-  const filePath = path.join(swaggerUiPath, file);
-
-  if (!fs.existsSync(filePath)) {
-    res.writeHead(404);
-    return res.end("Archivo no encontrado");
-  }
-
-  let content = fs.readFileSync(filePath);
-
-  if (file === "index.html") {
-    content = content
-      .toString()
-      // 1. Apuntar al swagger.json del servidor
-      .replace(
-        "https://petstore.swagger.io/v2/swagger.json",
-        "/swagger.json"
-      )
-      // 2. Prefijar todos los src/href relativos con /api-docs/
-      //    para que el browser no los pida desde la raíz
-      .replace(/(href|src)="(?!https?:\/\/|\/\/)([^"]+)"/g, '$1="/api-docs/$2"');
-  }
-
-  const ext = path.extname(filePath).toLowerCase();
-  res.writeHead(200, {
-    "Content-Type": contentTypes[ext] || "application/octet-stream",
+  fs.readFile(filePath, (err, data) => {
+    if (err) {
+      res.writeHead(404);
+      return res.end("Not found");
+    }
+    res.writeHead(200, { "Content-Type": contentType });
+    res.end(data);
   });
-  res.end(content);
 }
 
 const server = http.createServer(async (req, res) => {
-  // Aplicar CORS a todas las respuestas
   setCors(res);
 
-  // Preflight OPTIONS
   if (req.method === "OPTIONS") {
     res.writeHead(204);
     return res.end();
   }
 
-  // Extraer pathname sin query string
   const pathname = req.url.split("?")[0];
 
   try {
-    // Health check
+    // ── Health check ──────────────────────────────────────────────────────────
     if (req.method === "GET" && pathname === "/") {
       return sendJSON(res, 200, { status: "ok", message: "API Notas Estudiantiles 🎓" });
     }
 
-    // ──────────────────────────────────────────────
-    // SWAGGER JSON
-    // ──────────────────────────────────────────────
-    if (req.method === "GET" && pathname === "/swagger.json") {
-      const swagger = fs.readFileSync(path.join(__dirname, "swagger.json"));
+    // ── JSON de la especificación OpenAPI ─────────────────────────────────────
+    if (req.method === "GET" && pathname === "/api-docs/swagger.json") {
       res.writeHead(200, { "Content-Type": "application/json" });
-      return res.end(swagger);
+      return res.end(JSON.stringify(swaggerSpec));
     }
 
-    // ──────────────────────────────────────────────
-    // SWAGGER UI  →  /api-docs  y  /api-docs/*
-    // ──────────────────────────────────────────────
-    if (req.method === "GET" && pathname.startsWith("/api-docs")) {
-      let file = pathname.replace("/api-docs", "").replace(/^\/+/, "");
-      if (!file) file = "index.html";
-      return serveSwaggerFile(res, file);
+    // ── Swagger UI — redirige /api-docs → /api-docs/ ──────────────────────────
+    if (req.method === "GET" && pathname === "/api-docs") {
+      res.writeHead(301, { Location: "/api-docs/" });
+      return res.end();
     }
 
-    // ──────────────────────────────────────────────
-    // FALLBACK: assets que el browser pide sin prefijo
-    // (ocurre cuando swagger-initializer.js u otros
-    //  generan URLs relativas a la raíz del dominio)
-    // ──────────────────────────────────────────────
-    const bareFile = pathname.replace(/^\//, "");
-    if (req.method === "GET" && SWAGGER_ASSETS.has(bareFile)) {
-      return serveSwaggerFile(res, bareFile);
+    // ── Swagger UI — sirve index.html con la URL del spec inyectada ───────────
+    if (req.method === "GET" && pathname === "/api-docs/") {
+      const indexPath = path.join(swaggerUiPath, "swagger-initializer.js");
+
+      // HTML mínimo que monta Swagger UI apuntando a nuestro spec
+      const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <title>API Notas Estudiantiles — Docs</title>
+  <link rel="stylesheet" href="/api-docs/swagger-ui.css"/>
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="/api-docs/swagger-ui-bundle.js"></script>
+  <script src="/api-docs/swagger-ui-standalone-preset.js"></script>
+  <script>
+    window.onload = () => {
+      SwaggerUIBundle({
+        url: "/api-docs/swagger.json",
+        dom_id: "#swagger-ui",
+        presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+        layout: "StandaloneLayout",
+        deepLinking: true,
+      });
+    };
+  </script>
+</body>
+</html>`;
+      res.writeHead(200, { "Content-Type": "text/html" });
+      return res.end(html);
     }
 
-    // Rutas de estudiantes
+    // ── Swagger UI — assets (CSS, JS, imágenes) ───────────────────────────────
+    if (req.method === "GET" && pathname.startsWith("/api-docs/")) {
+      const filename = pathname.replace("/api-docs/", "");
+      return serveSwaggerAsset(res, filename);
+    }
+
+    // ── Rutas del negocio ─────────────────────────────────────────────────────
     const handledByEstudiantes = await estudiantesRouter(req, res, pathname);
     if (handledByEstudiantes !== false) return;
 
-    // Rutas de notas
     const handledByNotas = await notasRouter(req, res, pathname);
     if (handledByNotas !== false) return;
 
-    // 404
     sendJSON(res, 404, { error: "Ruta no encontrada" });
   } catch (err) {
     console.error("Error del servidor:", err);
@@ -134,5 +120,5 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`✅ Servidor corriendo en http://localhost:${PORT}`);
-  console.log(`📄 Swagger UI disponible en http://localhost:${PORT}/api-docs`);
+  console.log(`📚 Swagger UI disponible en http://localhost:${PORT}/api-docs/`);
 });
