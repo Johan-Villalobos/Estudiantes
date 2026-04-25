@@ -6,8 +6,8 @@ module.exports = {
     description: "Sistema de gestión de notas estudiantiles",
   },
   servers: [
-    { url: "https://estudiantes-tzgb.onrender.com", description: "Producción" },
-    { url: "http://localhost:3000", description: "Local" },
+    { url: "https://estudiantes-tzgb.onrender.com/api", description: "Producción" },
+    { url: "http://localhost:3000/api", description: "Local" },
   ],
   components: {
     schemas: {
@@ -37,28 +37,6 @@ module.exports = {
     },
   },
   paths: {
-    "/": {
-      get: {
-        summary: "Health check",
-        tags: ["General"],
-        responses: {
-          200: {
-            description: "API funcionando",
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                  properties: {
-                    status: { type: "string", example: "ok" },
-                    message: { type: "string", example: "API Notas Estudiantiles 🎓" },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
     "/estudiantes": {
       get: {
         summary: "Obtener todos los estudiantes",
@@ -110,8 +88,14 @@ module.exports = {
         tags: ["Estudiantes"],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
         responses: {
-          200: { description: "Estudiante encontrado", content: { "application/json": { schema: { $ref: "#/components/schemas/Estudiante" } } } },
-          404: { description: "No encontrado", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+          200: {
+            description: "Estudiante encontrado",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Estudiante" } } },
+          },
+          404: {
+            description: "No encontrado",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+          },
         },
       },
       put: {
@@ -134,7 +118,10 @@ module.exports = {
         },
         responses: {
           200: { description: "Actualizado correctamente" },
-          404: { description: "No encontrado" },
+          404: {
+            description: "No encontrado",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+          },
         },
       },
       delete: {
@@ -143,7 +130,10 @@ module.exports = {
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
         responses: {
           200: { description: "Eliminado correctamente" },
-          404: { description: "No encontrado" },
+          404: {
+            description: "No encontrado",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+          },
         },
       },
     },
@@ -199,8 +189,14 @@ module.exports = {
         tags: ["Notas"],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
         responses: {
-          200: { description: "Nota encontrada", content: { "application/json": { schema: { $ref: "#/components/schemas/Nota" } } } },
-          404: { description: "No encontrada" },
+          200: {
+            description: "Nota encontrada",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Nota" } } },
+          },
+          404: {
+            description: "No encontrada",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+          },
         },
       },
       put: {
@@ -223,7 +219,10 @@ module.exports = {
         },
         responses: {
           200: { description: "Actualizada correctamente" },
-          404: { description: "No encontrada" },
+          404: {
+            description: "No encontrada",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+          },
         },
       },
       delete: {
@@ -232,7 +231,10 @@ module.exports = {
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
         responses: {
           200: { description: "Eliminada correctamente" },
-          404: { description: "No encontrada" },
+          404: {
+            description: "No encontrada",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+          },
         },
       },
     },
