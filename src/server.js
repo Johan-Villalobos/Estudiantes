@@ -9,20 +9,36 @@ const { notasRouter } = require("./routes/notas");
 
 const PORT = process.env.PORT || 3000;
 
-// Tipos MIME
+// Tipos MIME para archivos estáticos de Swagger
 const contentTypes = {
   ".html": "text/html",
-  ".js": "application/javascript",
-  ".css": "text/css",
+  ".js":   "application/javascript",
+  ".css":  "text/css",
   ".json": "application/json",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
+  ".png":  "image/png",
+  ".jpg":  "image/jpeg",
   ".jpeg": "image/jpeg",
-  ".svg": "image/svg+xml",
-  ".ico": "image/x-icon",
+  ".svg":  "image/svg+xml",
+  ".ico":  "image/x-icon",
 };
 
-// Función reutilizable para servir archivos de Swagger UI
+// Assets conocidos de Swagger UI que el browser puede pedir sin prefijo
+const SWAGGER_ASSETS = new Set([
+  "swagger-ui.css",
+  "swagger-ui-bundle.js",
+  "swagger-ui-standalone-preset.js",
+  "swagger-initializer.js",
+  "index.css",
+  "favicon-32x32.png",
+  "favicon-16x16.png",
+  "oauth2-redirect.html",
+]);
+
+/**
+ * Sirve un archivo de swagger-ui-dist.
+ * @param {http.ServerResponse} res
+ * @param {string} file  - nombre de archivo relativo a swaggerUiPath
+ */
 function serveSwaggerFile(res, file) {
   const filePath = path.join(swaggerUiPath, file);
 
@@ -33,17 +49,17 @@ function serveSwaggerFile(res, file) {
 
   let content = fs.readFileSync(filePath);
 
-  // En index.html: reemplazar la URL del spec Y las rutas relativas de assets
   if (file === "index.html") {
     content = content
       .toString()
-      // Apuntar al swagger.json propio
+      // 1. Apuntar al swagger.json del servidor
       .replace(
         "https://petstore.swagger.io/v2/swagger.json",
         "/swagger.json"
       )
-      // Prefijar todos los assets relativos con /api-docs/
-      .replace(/(href|src)="(?!http|\/\/)([^"]+)"/g, '$1="/api-docs/$2"');
+      // 2. Prefijar todos los src/href relativos con /api-docs/
+      //    para que el browser no los pida desde la raíz
+      .replace(/(href|src)="(?!https?:\/\/|\/\/)([^"]+)"/g, '$1="/api-docs/$2"');
   }
 
   const ext = path.extname(filePath).toLowerCase();
@@ -54,13 +70,16 @@ function serveSwaggerFile(res, file) {
 }
 
 const server = http.createServer(async (req, res) => {
+  // Aplicar CORS a todas las respuestas
   setCors(res);
 
+  // Preflight OPTIONS
   if (req.method === "OPTIONS") {
     res.writeHead(204);
     return res.end();
   }
 
+  // Extraer pathname sin query string
   const pathname = req.url.split("?")[0];
 
   try {
@@ -69,33 +88,31 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 200, { status: "ok", message: "API Notas Estudiantiles 🎓" });
     }
 
-    // Swagger JSON
+    // ──────────────────────────────────────────────
+    // SWAGGER JSON
+    // ──────────────────────────────────────────────
     if (req.method === "GET" && pathname === "/swagger.json") {
       const swagger = fs.readFileSync(path.join(__dirname, "swagger.json"));
       res.writeHead(200, { "Content-Type": "application/json" });
       return res.end(swagger);
     }
 
-    // Swagger UI — ruta principal /api-docs y sus assets
+    // ──────────────────────────────────────────────
+    // SWAGGER UI  →  /api-docs  y  /api-docs/*
+    // ──────────────────────────────────────────────
     if (req.method === "GET" && pathname.startsWith("/api-docs")) {
       let file = pathname.replace("/api-docs", "").replace(/^\/+/, "");
       if (!file) file = "index.html";
       return serveSwaggerFile(res, file);
     }
 
-    // ⚡ Fallback: Swagger UI pide assets desde la raíz (sin prefijo)
-    // Detectamos si el archivo existe en swagger-ui-dist y lo servimos
-    const knownSwaggerAssets = [
-      "swagger-ui.css",
-      "swagger-ui-bundle.js",
-      "swagger-ui-standalone-preset.js",
-      "swagger-initializer.js",
-      "index.css",
-      "favicon-32x32.png",
-      "favicon-16x16.png",
-    ];
+    // ──────────────────────────────────────────────
+    // FALLBACK: assets que el browser pide sin prefijo
+    // (ocurre cuando swagger-initializer.js u otros
+    //  generan URLs relativas a la raíz del dominio)
+    // ──────────────────────────────────────────────
     const bareFile = pathname.replace(/^\//, "");
-    if (req.method === "GET" && knownSwaggerAssets.includes(bareFile)) {
+    if (req.method === "GET" && SWAGGER_ASSETS.has(bareFile)) {
       return serveSwaggerFile(res, bareFile);
     }
 
@@ -117,4 +134,5 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`✅ Servidor corriendo en http://localhost:${PORT}`);
+  console.log(`📄 Swagger UI disponible en http://localhost:${PORT}/api-docs`);
 });
